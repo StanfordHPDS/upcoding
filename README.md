@@ -1,0 +1,216 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# Package Overview
+
+<!-- badges: start -->
+
+[![R-CMD-check](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
+This R package enables users to:
+
+- **Simulate baseline co-occurring health conditions** for a
+  user-defined number of individuals
+- **Upcode specific health conditions** to a user-specified degree over
+  a set of time points, including optional additional right censoring
+- **Undercode** the simulated individuals to a user-specified degree
+
+Overall, these functions help users to better and more reproducibly
+evaluate approaches for upcoding and/or undercoding analysis and
+monitoring relevant to Medicare. As one example, see \[add link to paper
+here when available\].
+
+For more details about the background relevant to each of these, see
+“Brief background” below.
+
+## Installation
+
+You can install the development version of upcoding from GitHub with:
+
+``` r
+# install.packages("pak")
+pak::pak("StanfordHPDS/upcoding")
+```
+
+## Example tutorial
+
+### Setup
+
+``` r
+library(upcoding)
+library(here)
+library(tidyverse)
+library(data.table)
+library(survival)
+library(tidycmprsk)
+library(ggsurvfit)
+```
+
+### Simulate baseline data
+
+As an illustrative example, we simulate baseline data using default
+settings for 100 people (e.g. rows). Each row of the simulated data
+represents a person (indexed by the `person_id` column) and each column
+represents a diagnosis. More specifically, each column corresponds to
+one of the 115 Hierarchical Condition Categories (HCCs) in version 28
+(v28) of the CMS-HCC risk adjustment formula, which is used in Medicare
+Advantage. You can read more about the basics of risk adjustment
+[here](https://www.commonwealthfund.org/publications/explainer/2024/apr/basics-risk-adjustment)
+and
+[here](https://www.sciencedirect.com/science/chapter/edited-volume/pii/B9780128113257000038).
+
+By default, `simulate_baseline_v28_hcc_dt()` creates a directory in your
+current working directory (e.g. `here::here()`). We temporarily create
+an output directory “temp” relative to the current working directory to
+save our output. We’ll also generate two different baseline data sets–
+one for upcoding and one for undercoding. Don’t forget to change the
+seed to get different results!
+
+Note. Users will likely want to simulate more people (e.g. rows) in
+practice.
+
+``` r
+# This uses the default seed, which is 123
+simulate_baseline_v28_hcc_dt(
+  num_people = 100,
+  out_dir = "temp",
+  out_file_prefix = "upcoding_baseline_data"
+)
+
+simulate_baseline_v28_hcc_dt(
+  num_people = 100,
+  out_dir = "temp",
+  out_file_prefix = "undercoding_baseline_data",
+  curr_seed = 999
+)
+```
+
+Read in generated files:
+
+``` r
+undercoding_baseline_data <- fread(here("temp/undercoding_baseline_data.csv"))
+upcoding_baseline_data <- fread(here("temp/upcoding_baseline_data.csv"))
+
+# We expect 100 rows (for 100 simulated people),
+# and 116 columns (for one person_id column and 115 HCCs)
+dim(undercoding_baseline_data)
+#> [1] 100 116
+```
+
+### Undercoding
+
+The baseline data generated is meant to simulate co-occurring health
+conditions free of coding incentives. However, it might be informative
+to instead generate data like closer to that of Traditional Medicare
+(TM), which is known to have undercoding of diagnoses (one recent paper
+about this
+[here](https://www.healthaffairs.org/doi/full/10.1377/hlthaff.2024.00169)).
+If we want to simulate TM-like data, we might want to undercode
+(e.g. randomly remove diagnoses) from our baseline data. This function
+removes a user-specified proportion of diagnoses across the entire data
+set, and writes the undercoded data set to file (with default file
+prefix `undercoded_data_*`).
+
+``` r
+undercode_dt(undercoding_baseline_data,
+  undercoding_prop = 0.2, # undercode 20% of existing diagnoses
+  out_dir = "temp"
+)
+```
+
+### Upcoding
+
+#### Specify which diagnoses to upcode and to what degree
+
+The main upcoding function, `upcode_all_hccs()` expects as input a
+tibble or data.frame specifying the following:
+
+- “hcc” (character vector): Which individual HCCs to upcode, identified
+  as “hcc1”, “hcc2”, etc.
+- “approach” (character vector): How to select people (e.g. rows) to
+  upcode. For each HCC, this should be either “any” or “lower severity”.
+  “any” means that any rows not previously coded for that HCC will be
+  considered as available for upcoding, and “lower severity” will only
+  upcode rows where a lower severity HCC was previously coded (if that’s
+  available).
+- “upcoding_prop” (numeric vector): The proportion of available rows to
+  upcode (needs to be a value greater than 0 and less than 1)
+
+``` r
+# Specification input
+hcc <- c("hcc35", "hcc2")
+approach <- c("any", "any") # What approach to use to select
+upcoding_prop <- c(0.5, 0.5) # Degree of upcoding overall
+
+# Put columns together in a tibble
+my_upcoding_spec_df <- tibble(
+  hcc,
+  approach,
+  upcoding_prop
+)
+```
+
+Now we’re set to upcode the speficied HCCs! Note. By default, this will
+upcode over 4 time points (row IDs to upcode are split randomly across
+time points) and will also additionally right censor 5% of rows across
+the same time points (representing loss to follow up). This loss to
+follow up is also split randomly across the number of time points you
+specify, and once someone is lost to follow up they can’t be coded for
+any HCCs afterwards. You can adjust these with the `num_timepoints` and
+`censoring_prop` parameters respectively; see documentation for details.
+
+``` r
+upcode_all_hccs(
+  upcoding_baseline_data,
+  my_upcoding_spec_df,
+  out_dir = "temp"
+)
+```
+
+We have the option to either read in the final upcoded dataset (default
+name: `all_hcc_upcoded_data.csv`) or read in events by HCC (default
+name: `[hcc_name]_upcoded_data_event_and_time_labels.csv`).
+`all_hcc_upcoded_data.csv` corresponds to the final upcoded and censored
+data at the end of all time points.
+
+Let’s look at the latter
+(e.g. `[hcc_name]_upcoded_data_event_and_time_labels.csv`), as this is
+the format compatible with standard survival packages with R (so we
+assume it’ll be used more):
+
+``` r
+# Read in events (upcoding or censoring) for HCC 2
+hcc2_labels <- read_csv(here("temp/hcc2_upcoded_data_event_and_time_labels.csv"))
+
+head(hcc2_labels)
+#> # A tibble: 6 × 3
+#>   person_id event_type event_time
+#>       <dbl>      <dbl>      <dbl>
+#> 1        62          1          1
+#> 2        80          1          1
+#> 3        21          1          1
+#> 4         7          1          1
+#> 5        95          1          1
+#> 6        53          1          1
+```
+
+Let’s plot it! We’re interested in the incidence of new coding, so a
+cumulative incidence plot makes sense as a starting point.
+
+``` r
+my_plot <- cuminc(Surv(event_time, factor(event_type)) ~ 1, data = hcc2_labels) |>
+  ggcuminc() |>
+  scale_ggsurvfit()
+
+my_plot
+```
+
+<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
+
+Lastly, you might want to delete the temporary directory we made for
+this tutorial:
+
+``` r
+unlink(here("temp/"), recursive = TRUE)
+```
