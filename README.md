@@ -6,6 +6,7 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml)
+
 <!-- badges: end -->
 
 This R package enables users to:
@@ -18,8 +19,9 @@ This R package enables users to:
 
 Overall, these functions help users to better and more reproducibly
 evaluate approaches for upcoding and/or undercoding analysis and
-monitoring relevant to Medicare. As one example, see \[add link to paper
-here when available\].
+monitoring relevant to Medicare. As one example, see
+[arxiv:2602.04092](https://arxiv.org/abs/2602.04092), which uses this
+package for simulations.
 
 For more details about the background relevant to each of these, see
 “Brief background” below.
