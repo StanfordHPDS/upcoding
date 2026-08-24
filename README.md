@@ -1,11 +1,11 @@
+# README
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
 
 # Package Overview
 
 <!-- badges: start -->
 
-[![R-CMD-check](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml)
+[![](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/StanfordHPDS/upcoding/actions/workflows/R-CMD-check.yaml)
 
 <!-- badges: end -->
 
@@ -13,6 +13,15 @@ This R package enables users to:
 
 - **Simulate baseline co-occurring health conditions** for a
   user-defined number of individuals
+  - Users have three options to use as a reference for simulating
+    co-occurring HCCs: (1) the default,
+    `coocurring_v28_hcc_counts_allofus`, (2)
+    `cms_hcc_v28_reference_hcc_count_dt`, or (3) a custom reference of
+    co-occurring HCCs in the same format as these two files. To read
+    more about the details of each of the built-in references, users can
+    either type `help()` for each reference
+    (e.g. `help(coocurring_v28_hcc_counts_allofus)` ) after loading the
+    package or look at the underlying documentation in `R/data.R`.
 - **Upcode specific health conditions** to a user-specified degree over
   a set of time points, including optional additional right censoring
 - **Undercode** the simulated individuals to a user-specified degree
@@ -208,7 +217,8 @@ my_plot <- cuminc(Surv(event_time, factor(event_type)) ~ 1, data = hcc2_labels) 
 my_plot
 ```
 
-<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-9-1.png"
+style="width:100.0%" />
 
 Lastly, you might want to delete the temporary directory we made for
 this tutorial:
